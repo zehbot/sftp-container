@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  sftp:
+    build: .
+    container_name: sftp-server
+    restart: unless-stopped
+    ports:
+      - "2222:22"
+    environment:
+      - SFTP_USER=sftp
+      - SFTP_PASS=sftp # change
+      - SFTP_UID=1000
+      - SFTP_GID=1000
+    volumes:
+      - /mnt/sftpdata:/home/sftp # adjust to your local
+
+volumes:
+  sftp-data:
