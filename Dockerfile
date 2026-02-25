@@ -37,6 +37,9 @@ ENV SFTP_UID=1000
 ENV SFTP_GID=1000
 ENV SFTP_ROOT=/home/sftp
 
+# Copy SBOM files
+COPY SBOM.md sbom-cyclonedx.json /
+
 # Expose SSH port
 EXPOSE 22
 

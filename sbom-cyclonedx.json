@@ -1,0 +1,50 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "serialNumber": "urn:uuid:",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-02-25T19:35:00Z",
+    "tools": [
+      {
+        "name": "sftp-container",
+        "version": "1.0.0"
+      }
+    ],
+    "component": {
+      "type": "container",
+      "name": "sftp-container",
+      "version": "1.0.0"
+    }
+  },
+  "components": [
+    {
+      "type": "os",
+      "name": "alpine",
+      "version": "3.19",
+      "purl": "pkg:alpine/alpine@3.19"
+    },
+    {
+      "type": "application",
+      "name": "openssh-server",
+      "version": "latest",
+      "purl": "pkg:alpine/openssh-server@latest"
+    },
+    {
+      "type": "application",
+      "name": "shadow",
+      "version": "latest",
+      "purl": "pkg:alpine/shadow@latest"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "sftp-container",
+      "dependsOn": [
+        "pkg:alpine/alpine@3.19",
+        "pkg:alpine/openssh-server@latest",
+        "pkg:alpine/shadow@latest"
+      ]
+    }
+  ]
+}

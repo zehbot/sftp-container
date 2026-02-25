@@ -96,3 +96,39 @@ docker run -d \
 - Change default credentials in production
 - Consider using SSH keys instead of passwords
 - The container runs as non-root user
+
+## K3s Deployment
+
+This project includes a Kubernetes manifest (`k3s-manifest.yaml`) for deployment on K3s with Longhorn storage.
+
+### Resources Created
+
+| Resource | Description |
+|----------|-------------|
+| Secret | Stores SFTP credentials |
+| PersistentVolumeClaim | Longhorn PVC (1Gi) |
+| Deployment | sftp-container pods |
+| Service | NodePort 30022 |
+
+### Usage
+
+```bash
+# Create namespace and apply manifest
+kubectl create namespace sftp
+kubectl apply -f k3s-manifest.yaml
+
+# Check status
+kubectl get all -n sftp
+
+# View logs
+kubectl logs -n sftp -l app=sftp
+
+# Connect via SFTP
+sftp -P 30022 sftp@<k3s-node-ip>
+```
+
+### Customization
+
+- **Change storage:** Edit `storageClassName` in the PVC (e.g., `local-path`)
+- **Change credentials:** Update the Secret or use `kubectl edit secret sftp-secret -n sftp`
+- **Change port:** Edit `nodePort` in the Service (default: `30022`)
