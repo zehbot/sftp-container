@@ -1,0 +1,133 @@
+---
+# Secret for SFTP authentication (password + multiple public keys)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sftp-secret
+  namespace: sftp
+type: Opaque
+stringData:
+  SFTP_USER: sftp
+  SFTP_PASS: sftp
+  # Multiple public keys - each on a new line
+  # Add additional keys below (authorized_keys format: key-type base64... comment)
+  authorized_keys: |
+    ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCz2v+L1cuv/DIfGUOI+zSTQUP4fJEUleD49lR2e3d3/h7JM28tC/c9SoqA3L59GprIBVsrOpuzEMnE7fWgjeNClZiHrYV6cszf/WJGCN2rhwOV399DxStPr78oj7dK7Rwzep76YnaMV2fEsS0MW09SChe0iouCg+mz58f9hoh725ZG/NnxSIn4AHRea+EHj9tHbnWu/cAF6ci+hewqWJx2fATMSGJzcSL8jlJy/rCFB4TGdzMUTxA5ka5rKFm0IxwPDo7srPgbnubGZ03FJQnHT8ty+LBXv2hY6pFlz0TGL3jFalV2m3b567FTa3D7nINtXTmXDPiNe3eIvnxfRCBy52bRGadQZRtoMpHUIAjJG8SDocYkpyS1XQfV3Ei6gHDuOQ3Bhx4h17O0fa86/4SfARM80v0dS6AwyOUKknqAtYmsL+w5G1oAghGAa/nw5tgvelLGWQmsNPX/3rTUvrbjFvVe+9M3CuVJHgch/Mb1iqvxs7GjPKYBkX4hZ1lxHTgGrezPsBKW4kfO0XcegaA0XZNUxw9edyUKUouShJahNeERPMbqsNJFkA0hFLJQqKKlfcEoIcbklX6Ahff1la7swNu3dI++gZRMK7c05WiRQwSznPLpkoWsdQP9frtI/oTuhB5H8q8IlcA6LktoJTsb/pXwHLtdhQG+BTcP3crm0Q== cbot@cbotVMu2404
+    # Add more keys below:
+    # ssh-ed25519 AAAA... user@other-machine
+    # ssh-rsa AAAA... user@another-machine
+---
+# PersistentVolumeClaim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sftp-data-pvc
+  namespace: sftp
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sftp-deployment
+  namespace: sftp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sftp
+  template:
+    metadata:
+      labels:
+        app: sftp
+    spec:
+      containers:
+        - name: sftp
+          image: inkassodeppen/sftpcontainer:latest
+          ports:
+            - containerPort: 22
+              name: sftp
+          env:
+            - name: SFTP_USER
+              valueFrom:
+                secretKeyRef:
+                  name: sftp-secret
+                  key: SFTP_USER
+            - name: SFTP_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: sftp-secret
+                  key: SFTP_PASS
+            - name: SFTP_UID
+              value: "1000"
+            - name: SFTP_GID
+              value: "1000"
+            - name: SFTP_ROOT
+              value: /home/sftp
+            # SSH_KEY is now provided via mounted volume, not env var
+          volumeMounts:
+            - name: sftp-data
+              mountPath: /home/sftp
+            - name: ssh-keys
+              mountPath: /home/sftp/.ssh
+              readOnly: true
+          livenessProbe:
+            tcpSocket:
+              port: 22
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "100m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+      volumes:
+        - name: sftp-data
+          persistentVolumeClaim:
+            claimName: sftp-data-pvc
+        - name: ssh-keys
+          secret:
+            secretName: sftp-secret
+            items:
+              - key: authorized_keys
+                path: authorized_keys
+            defaultMode: 0600
+---
+# Service (NodePort)
+apiVersion: v1
+kind: Service
+metadata:
+  name: sftp-service-nodeport
+  namespace: sftp
+spec:
+  type: NodePort
+  ports:
+    - port: 22
+      targetPort: 22
+      nodePort: 30022
+      protocol: TCP
+  selector:
+    app: sftp
+---
+# Service (LoadBalancer)
+apiVersion: v1
+kind: Service
+metadata:
+  name: sftp-service-loadbalancer
+  namespace: sftp
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 22
+      targetPort: 22
+      protocol: TCP
+  selector:
+    app: sftp
