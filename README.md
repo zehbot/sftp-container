@@ -4,6 +4,10 @@ Lightweight SFTP/SCP server running in Docker. Based on Alpine Linux.
 
 ## Quick Start
 
+A prebuilt multi-arch image is published as
+`inkassodeppen/sftpcontainer:latest` (`docker run -d -p 2222:22 -e SFTP_USER=myuser -e SFTP_PASS=mypassword inkassodeppen/sftpcontainer:latest`).
+To build it yourself:
+
 ```bash
 # Build
 docker build -t sftp-container:latest .
@@ -95,27 +99,35 @@ docker run -d \
 
 - Change default credentials in production
 - Consider using SSH keys instead of passwords
-- The container runs as non-root user
+- `sshd` runs as root inside the container (it must bind port 22 and change
+  users); the SFTP login itself is the non-root user created at startup
 
 ## K3s Deployment
 
-This project includes a Kubernetes manifest (`k3s-manifest.yaml`) for deployment on K3s with Longhorn storage.
+Two manifests are included, both with Longhorn storage:
+
+| File | Authentication |
+|------|----------------|
+| `sftp-k3s-manifest.yaml` | password (`SFTP_PASS`) |
+| `sftp-keybased-k3s-manifest.yaml` | SSH key (`SSH_KEY`, mounted from the Secret with `defaultMode: 0600`) |
 
 ### Resources Created
 
 | Resource | Description |
 |----------|-------------|
-| Secret | Stores SFTP credentials |
-| PersistentVolumeClaim | Longhorn PVC (1Gi) |
-| Deployment | sftp-container pods |
-| Service | NodePort 30022 |
+| Secret `sftp-secret` | SFTP credentials (password and/or SSH key) |
+| PersistentVolumeClaim `sftp-data-pvc` | Longhorn PVC (1Gi) |
+| Deployment `sftp-deployment` | sftp-container pods, image `inkassodeppen/sftpcontainer:latest` |
+| Service `sftp-service-nodeport` | NodePort 30022 |
+| Service `sftp-service-loadbalancer` | LoadBalancer, port 22 |
 
 ### Usage
 
 ```bash
-# Create namespace and apply manifest
+# Create namespace and apply one of the manifests
 kubectl create namespace sftp
-kubectl apply -f k3s-manifest.yaml
+kubectl apply -f sftp-k3s-manifest.yaml            # password auth
+# kubectl apply -f sftp-keybased-k3s-manifest.yaml # key auth
 
 # Check status
 kubectl get all -n sftp
@@ -126,6 +138,12 @@ kubectl logs -n sftp -l app=sftp
 # Connect via SFTP
 sftp -P 30022 sftp@<k3s-node-ip>
 ```
+
+The manifests use the published image, so nodes need access to `registry-1.docker.io`.
+To use a locally built image instead, change the `image:` field and keep
+`imagePullPolicy` in step.
+
+See also `howto-secrets.md` and `howto-sftp-key-based-auth.md`.
 
 ### Customization
 
