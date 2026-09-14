@@ -1,0 +1,11 @@
+# Editor / IDE
+.idea/
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Local copies
+*.bak
